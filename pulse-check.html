@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>مقياس نبض القلب</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;900&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FAF6EF;
+    --surface:#FFFFFF;
+    --ink:#1C2530;
+    --ink-soft:#5C6875;
+    --primary:#164A56;
+    --primary-dark:#0E353E;
+    --pulse:#E14C3B;
+    --good:#2E8F63;
+    --warn:#D99A2B;
+    --risk:#D2402F;
+    --line:#E6DED0;
+    --radius:18px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{font-family:'Cairo', sans-serif;}
+
+  /* ---------- Heartbeat header ---------- */
+  .ekg-wrap{
+    width:100%;
+    background:var(--primary);
+    position:relative;
+    overflow:hidden;
+    padding-top:env(safe-area-inset-top);
+  }
+  .ekg-inner{
+    max-width:520px;
+    margin:0 auto;
+    padding:22px 20px 16px;
+    position:relative;
+  }
+  .ekg-svg{width:100%; height:52px; display:block;}
+  .ekg-path{
+    fill:none;
+    stroke:var(--pulse);
+    stroke-width:2.5;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+    stroke-dasharray:600;
+    stroke-dashoffset:600;
+    animation:draw 2.6s ease-out forwards, pulse-glow 2.6s 2.6s ease-in-out infinite;
+  }
+  @keyframes draw{ to{ stroke-dashoffset:0; } }
+  @keyframes pulse-glow{
+    0%,100%{ opacity:1; }
+    50%{ opacity:.55; }
+  }
+  .brand-row{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-top:4px;
+  }
+  .brand-label{
+    color:#EDEBE3; font-size:13px; opacity:.85; letter-spacing:.02em;
+  }
+  .day-badge{
+    color:#fff; background:rgba(255,255,255,.14);
+    border:1px solid rgba(255,255,255,.25);
+    border-radius:999px; padding:5px 12px; font-size:12px;
+  }
+
+  /* ---------- Shell ---------- */
+  .shell{
+    width:100%; max-width:520px; flex:1;
+    display:flex; flex-direction:column;
+    padding:0 20px 40px;
+  }
+  .card{
+    background:var(--surface);
+    border-radius:var(--radius);
+    box-shadow:0 1px 2px rgba(28,37,48,.04), 0 12px 28px -14px rgba(28,37,48,.18);
+    padding:28px 22px;
+    margin-top:-18px;
+    position:relative;
+    z-index:2;
+  }
+
+  /* ---------- Intro screen ---------- */
+  .intro-icon{font-size:38px; line-height:1;}
+  .intro h1{font-size:23px; font-weight:900; margin:14px 0 10px; color:var(--primary-dark); line-height:1.5;}
+  .intro p{font-size:15px; color:var(--ink-soft); line-height:1.9; margin-bottom:10px;}
+  .fact-strip{
+    display:flex; gap:10px; margin:18px 0 4px; flex-wrap:wrap;
+  }
+  .fact-chip{
+    background:#F4EEE3; color:var(--primary-dark);
+    border-radius:10px; padding:9px 12px; font-size:12.5px;
+    flex:1; min-width:120px; text-align:center; font-weight:600;
+  }
+  .disclaimer{
+    font-size:11.5px; color:var(--ink-soft); background:#F7F3EB;
+    border-radius:10px; padding:10px 12px; margin-top:16px; line-height:1.7;
+  }
+
+  /* ---------- Buttons ---------- */
+  .btn{
+    display:block; width:100%; text-align:center;
+    background:var(--pulse); color:#fff; border:none;
+    font-family:'Cairo', sans-serif; font-weight:700; font-size:16px;
+    padding:15px 18px; border-radius:12px; cursor:pointer;
+    margin-top:20px; transition:transform .15s ease, box-shadow .15s ease, opacity .15s;
+    box-shadow:0 10px 20px -10px rgba(225,76,59,.55);
+  }
+  .btn:active{ transform:scale(.98); }
+  .btn:focus-visible{ outline:3px solid #164A56; outline-offset:2px; }
+  .btn.secondary{
+    background:transparent; color:var(--primary); box-shadow:none;
+    border:1.5px solid var(--line); margin-top:10px;
+  }
+  .btn[disabled]{ opacity:.4; pointer-events:none; }
+
+  /* ---------- Quiz progress (pulse dots) ---------- */
+  .progress-row{
+    display:flex; align-items:center; gap:5px; margin-bottom:22px;
+  }
+  .dot{
+    height:7px; flex:1; border-radius:99px; background:var(--line);
+    transition:background .3s ease;
+  }
+  .dot.done{ background:var(--pulse); }
+  .q-count{ font-size:12px; color:var(--ink-soft); white-space:nowrap; margin-inline-start:8px; }
+
+  .q-label{ font-size:12.5px; color:var(--pulse); font-weight:700; margin-bottom:6px; }
+  .q-title{ font-size:19px; font-weight:700; margin-bottom:20px; line-height:1.6; color:var(--ink); }
+
+  .options{ display:flex; flex-direction:column; gap:10px; }
+  .opt{
+    border:1.5px solid var(--line); background:#fff;
+    border-radius:12px; padding:14px 16px; text-align:right;
+    font-family:inherit; font-size:15px; color:var(--ink);
+    cursor:pointer; transition:.15s ease; display:flex; align-items:center; justify-content:space-between;
+  }
+  .opt:hover{ border-color:var(--primary); }
+  .opt.selected{
+    border-color:var(--pulse); background:#FDF1EE; color:var(--primary-dark); font-weight:600;
+  }
+  .opt .mark{
+    width:18px; height:18px; border-radius:50%; border:1.5px solid var(--line); flex-shrink:0;
+  }
+  .opt.selected .mark{ background:var(--pulse); border-color:var(--pulse); }
+
+  .measure-row{ display:flex; gap:12px; }
+  .measure-field{ flex:1; }
+  .measure-field label{ font-size:12.5px; color:var(--ink-soft); display:block; margin-bottom:6px; }
+  .measure-field input{
+    width:100%; border:1.5px solid var(--line); border-radius:12px;
+    padding:13px 14px; font-size:16px; font-family:inherit; color:var(--ink);
+    background:#fff;
+  }
+  .measure-field input:focus{ outline:none; border-color:var(--primary); }
+
+  .nav-row{ display:flex; gap:10px; margin-top:22px; }
+  .nav-row .btn{ margin-top:0; }
+  .nav-row .btn.secondary{ flex:0 0 90px; }
+  .nav-row .btn.primary-nav{ flex:1; }
+
+  /* ---------- Result screen ---------- */
+  .result-badge{
+    width:74px; height:74px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:30px; margin-bottom:16px;
+  }
+  .result-title{ font-size:22px; font-weight:900; margin-bottom:8px; }
+  .result-sub{ font-size:14.5px; color:var(--ink-soft); line-height:1.85; margin-bottom:18px; }
+  .risk-meter{
+    height:10px; border-radius:99px; background:var(--line); overflow:hidden; margin-bottom:6px;
+  }
+  .risk-fill{ height:100%; border-radius:99px; transition:width 1s ease; }
+  .risk-labels{ display:flex; justify-content:space-between; font-size:11px; color:var(--ink-soft); margin-bottom:22px; }
+
+  .tips{ display:flex; flex-direction:column; gap:10px; margin-bottom:18px; }
+  .tip{
+    display:flex; gap:10px; align-items:flex-start;
+    background:#F7F3EB; border-radius:12px; padding:12px 14px;
+  }
+  .tip .ic{ font-size:17px; margin-top:1px; }
+  .tip .tx{ font-size:13.8px; line-height:1.75; color:var(--ink); }
+
+  .pt-box{
+    background:var(--primary); color:#fff; border-radius:14px;
+    padding:16px 16px; margin-bottom:18px;
+  }
+  .pt-box .h{ font-family:'Cairo',sans-serif; font-weight:700; font-size:15px; margin-bottom:6px; display:flex; align-items:center; gap:8px;}
+  .pt-box p{ font-size:13.3px; line-height:1.8; color:#EAF2F0; }
+
+  .booth-note{
+    text-align:center; font-size:13px; color:var(--primary-dark);
+    background:#EFE7D8; border-radius:12px; padding:12px; margin-bottom:6px; font-weight:600;
+  }
+
+  .foot-note{ text-align:center; font-size:11px; color:var(--ink-soft); margin-top:22px; line-height:1.7; }
+
+  .hidden{ display:none !important; }
+
+  @media (prefers-reduced-motion: reduce){
+    .ekg-path{ animation:none; stroke-dashoffset:0; }
+    .risk-fill{ transition:none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="ekg-wrap">
+  <div class="ekg-inner">
+    <svg class="ekg-svg" viewBox="0 0 500 60" preserveAspectRatio="none">
+      <path class="ekg-path" d="M0,32 L90,32 L110,32 L122,10 L136,54 L150,20 L162,32 L180,32 L192,32 L204,14 L216,48 L228,32 L500,32"/>
+    </svg>
+    <div class="brand-row">
+      <span class="brand-label">اليوم العالمي للعلاج الطبيعي</span>
+      <span class="day-badge">٨ سبتمبر</span>
+    </div>
+  </div>
+</div>
+
+<div class="shell">
+
+  <!-- INTRO -->
+  <div class="card intro" id="screen-intro">
+    <div class="intro-icon">🫀</div>
+    <h1>مقياس نبض القلب</h1>
+    <p>هذا العام نسلّط الضوء على صحة القلب والأوعية الدموية والوقاية من السكتة الدماغية.</p>
+    <p>أجب عن ٩ أسئلة سريعة (أقل من دقيقتين) لتحصل على مؤشر تقريبي لمستوى الخطر لديك، مع نصائح عملية من فريق العلاج الطبيعي.</p>
+    <div class="fact-strip">
+      <div class="fact-chip">٩ أسئلة</div>
+      <div class="fact-chip">دقيقتان</div>
+      <div class="fact-chip">نتيجة فورية</div>
+    </div>
+    <button class="btn" id="start-btn">ابدأ الفحص</button>
+    <div class="disclaimer">⚠️ هذه الأداة توعوية فقط ولا تُغني عن الفحص أو الاستشارة الطبية، ولا تُعد تشخيصًا. عند وجود عوامل خطر يُنصح بمراجعة الطبيب.</div>
+  </div>
+
+  <!-- QUIZ -->
+  <div class="card hidden" id="screen-quiz">
+    <div class="progress-row">
+      <div class="dot" data-dot></div><div class="dot" data-dot></div><div class="dot" data-dot></div>
+      <div class="dot" data-dot></div><div class="dot" data-dot></div><div class="dot" data-dot></div>
+      <div class="dot" data-dot></div><div class="dot" data-dot></div><div class="dot" data-dot></div>
+      <span class="q-count" id="q-count">١ / ٩</span>
+    </div>
+    <div class="q-label" id="q-label">السؤال</div>
+    <div class="q-title" id="q-title"></div>
+    <div class="options" id="q-options"></div>
+    <div id="measure-wrap"></div>
+    <div class="nav-row">
+      <button class="btn secondary" id="back-btn">السابق</button>
+      <button class="btn primary-nav" id="next-btn" disabled>التالي</button>
+    </div>
+  </div>
+
+  <!-- RESULT -->
+  <div class="card hidden" id="screen-result">
+    <div class="result-badge" id="result-badge">🙂</div>
+    <div class="result-title" id="result-title" style="color:var(--good);">خطر منخفض</div>
+    <div class="result-sub" id="result-sub"></div>
+
+    <div class="risk-meter"><div class="risk-fill" id="risk-fill"></div></div>
+    <div class="risk-labels"><span>منخفض</span><span>متوسط</span><span>مرتفع</span></div>
+
+    <div class="tips" id="tips-list"></div>
+
+    <div class="pt-box">
+      <div class="h">🏃‍♂️ دور العلاج الطبيعي في وقاية القلب</div>
+      <p>النشاط البدني المنتظم بإشراف مختص يخفض ضغط الدم، يحسّن الدورة الدموية، ويقلل خطر السكتة الدماغية. برنامج حركي مناسب لعمرك وحالتك هو أحد أقوى خطوط الدفاع.</p>
+    </div>
+
+    <div class="booth-note">🩺 زوروا ركن العلاج الطبيعي اليوم لقياس مجاني وتوصيات حركية شخصية</div>
+
+    <button class="btn secondary" id="restart-btn">إعادة الفحص</button>
+    <div class="foot-note">النتيجة تقريبية لأغراض التوعية فقط، وبُنيت استرشادًا بعوامل الخطر المعتمدة عالميًا (كمبادئ WHO / AHA)، ولا تعادل أدوات القياس الطبية الرسمية مثل ASCVD أو SCORE2.</div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  const questions = [
+    {
+      label:"العمر", title:"كم عمرك؟",
+      options:[
+        {text:"أقل من ٤٠ سنة", pts:0},
+        {text:"من ٤٠ إلى ٥٩ سنة", pts:1},
+        {text:"٦٠ سنة فأكثر", pts:2}
+      ]
+    },
+    {
+      label:"عوامل عامة", title:"هل تدخّن حاليًا؟",
+      options:[
+        {text:"لا", pts:0},
+        {text:"مدخّن سابق وأقلعت", pts:1},
+        {text:"نعم، أدخّن حاليًا", pts:2}
+      ]
+    },
+    {
+      label:"النشاط البدني", title:"كم مرة أسبوعيًا تمارس نشاطًا بدنيًا لمدة ٣٠ دقيقة فأكثر؟",
+      options:[
+        {text:"٥ أيام فأكثر", pts:0},
+        {text:"من ١ إلى ٤ أيام", pts:1},
+        {text:"لا أمارس أي نشاط تقريبًا", pts:2}
+      ]
+    },
+    {
+      label:"الوزن والطول", title:"أدخل طولك ووزنك التقريبي لحساب مؤشر كتلة الجسم",
+      measure:true
+    },
+    {
+      label:"التاريخ العائلي", title:"هل يوجد في عائلتك (والدين/إخوة) من أُصيب بأمراض قلب أو سكتة دماغية قبل سن الستين؟",
+      options:[
+        {text:"لا", pts:0},
+        {text:"لا أعرف", pts:1},
+        {text:"نعم", pts:2}
+      ]
+    },
+    {
+      label:"ضغط الدم", title:"هل سبق تشخيصك بارتفاع ضغط الدم؟",
+      options:[
+        {text:"لا", pts:0},
+        {text:"لا أعرف / لم أُفحص", pts:1},
+        {text:"نعم", pts:2}
+      ]
+    },
+    {
+      label:"السكري", title:"هل سبق تشخيصك بالسكري أو مقدمات السكري؟",
+      options:[
+        {text:"لا", pts:0},
+        {text:"لا أعرف / لم أُفحص", pts:1},
+        {text:"نعم", pts:2}
+      ]
+    },
+    {
+      label:"الحالة النفسية", title:"كيف تقيّم مستوى التوتر لديك في حياتك اليومية؟",
+      options:[
+        {text:"منخفض", pts:0},
+        {text:"متوسط", pts:1},
+        {text:"مرتفع باستمرار", pts:2}
+      ]
+    },
+    {
+      label:"النوم", title:"كم ساعة نوم تحصل عليها عادةً في الليلة؟",
+      options:[
+        {text:"٧ إلى ٨ ساعات", pts:0},
+        {text:"٥ إلى ٦ ساعات، أو أكثر من ٩", pts:1},
+        {text:"أقل من ٥ ساعات", pts:2}
+      ]
+    }
+  ];
+
+  let current = 0;
+  let answers = new Array(questions.length).fill(null);
+  let bmiPts = null;
+
+  const screenIntro = document.getElementById('screen-intro');
+  const screenQuiz = document.getElementById('screen-quiz');
+  const screenResult = document.getElementById('screen-result');
+  const qLabel = document.getElementById('q-label');
+  const qTitle = document.getElementById('q-title');
+  const qOptions = document.getElementById('q-options');
+  const measureWrap = document.getElementById('measure-wrap');
+  const qCount = document.getElementById('q-count');
+  const backBtn = document.getElementById('back-btn');
+  const nextBtn = document.getElementById('next-btn');
+  const dots = document.querySelectorAll('[data-dot]');
+
+  const arNums = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+  function toArNum(n){ return String(n).split('').map(d=>arNums[+d]||d).join(''); }
+
+  document.getElementById('start-btn').addEventListener('click', ()=>{
+    screenIntro.classList.add('hidden');
+    screenQuiz.classList.remove('hidden');
+    renderQuestion();
+  });
+
+  function renderQuestion(){
+    const q = questions[current];
+    qLabel.textContent = q.label;
+    qTitle.textContent = q.title;
+    qCount.textContent = toArNum(current+1) + ' / ' + toArNum(questions.length);
+    qOptions.innerHTML = '';
+    measureWrap.innerHTML = '';
+
+    dots.forEach((d,i)=>{ d.classList.toggle('done', i <= current); });
+
+    if(q.measure){
+      qOptions.classList.add('hidden');
+      measureWrap.innerHTML = `
+        <div class="measure-row">
+          <div class="measure-field">
+            <label>الطول (سم)</label>
+            <input type="number" inputmode="numeric" id="height-input" placeholder="مثال: ١٧٠">
+          </div>
+          <div class="measure-field">
+            <label>الوزن (كغم)</label>
+            <input type="number" inputmode="numeric" id="weight-input" placeholder="مثال: ٧٥">
+          </div>
+        </div>`;
+      const hInput = document.getElementById('height-input');
+      const wInput = document.getElementById('weight-input');
+      const checkMeasure = ()=>{
+        const h = parseFloat(hInput.value), w = parseFloat(wInput.value);
+        if(h>0 && w>0){
+          const bmi = w / ((h/100)*(h/100));
+          if(bmi < 25) bmiPts = 0;
+          else if(bmi < 30) bmiPts = 1;
+          else bmiPts = 2;
+          answers[current] = bmiPts;
+          nextBtn.disabled = false;
+        } else {
+          nextBtn.disabled = true;
+        }
+      };
+      hInput.addEventListener('input', checkMeasure);
+      wInput.addEventListener('input', checkMeasure);
+      if(answers[current]!==null){
+        // restore nothing precise (raw values not stored) — just re-enable if previously answered
+        nextBtn.disabled = false;
+      } else {
+        nextBtn.disabled = true;
+      }
+    } else {
+      qOptions.classList.remove('hidden');
+      q.options.forEach((opt, idx)=>{
+        const btn = document.createElement('button');
+        btn.className = 'opt';
+        btn.type = 'button';
+        btn.innerHTML = `<span>${opt.text}</span><span class="mark"></span>`;
+        if(answers[current] === opt.pts) btn.classList.add('selected');
+        btn.addEventListener('click', ()=>{
+          answers[current] = opt.pts;
+          [...qOptions.children].forEach(c=>c.classList.remove('selected'));
+          btn.classList.add('selected');
+          nextBtn.disabled = false;
+        });
+        qOptions.appendChild(btn);
+      });
+      nextBtn.disabled = answers[current] === null;
+    }
+
+    backBtn.disabled = current === 0;
+    backBtn.style.opacity = current === 0 ? '.4' : '1';
+    nextBtn.textContent = current === questions.length - 1 ? 'عرض النتيجة' : 'التالي';
+  }
+
+  backBtn.addEventListener('click', ()=>{
+    if(current > 0){ current--; renderQuestion(); }
+  });
+
+  nextBtn.addEventListener('click', ()=>{
+    if(current < questions.length - 1){
+      current++;
+      renderQuestion();
+    } else {
+      showResult();
+    }
+  });
+
+  function showResult(){
+    const total = answers.reduce((a,b)=>a+(b||0),0);
+    const maxScore = 16;
+    const pct = Math.min(100, Math.round((total/maxScore)*100));
+
+    screenQuiz.classList.add('hidden');
+    screenResult.classList.remove('hidden');
+
+    const badge = document.getElementById('result-badge');
+    const title = document.getElementById('result-title');
+    const sub = document.getElementById('result-sub');
+    const fill = document.getElementById('risk-fill');
+    const tipsList = document.getElementById('tips-list');
+
+    let level, color, emoji, message, tips;
+
+    if(total <= 5){
+      level = 'خطر منخفض'; color = 'var(--good)'; emoji='🙂';
+      message = 'مؤشراتك الحالية جيدة نسبيًا. حافظ على نمط حياتك النشط واستمر بالفحوصات الدورية.';
+      tips = [
+        {ic:'🚶', tx:'استمر في النشاط البدني المنتظم، فهو خط دفاعك الأقوى.'},
+        {ic:'🩺', tx:'راجع ضغط الدم والسكري دوريًا حتى مع عدم وجود أعراض.'},
+        {ic:'🥗', tx:'حافظ على نظام غذائي متوازن قليل الملح والدهون المشبعة.'}
+      ];
+    } else if(total <= 10){
+      level = 'خطر متوسط'; color = 'var(--warn)'; emoji='😐';
+      message = 'لديك بعض عوامل الخطر التي يمكن تعديلها. خطوات بسيطة الآن تُحدث فرقًا كبيرًا لاحقًا.';
+      tips = [
+        {ic:'🏃', tx:'ابدأ برنامج نشاط بدني تدريجي ٣٠ دقيقة يوميًا، ٥ أيام أسبوعيًا.'},
+        {ic:'⚖️', tx:'إن كان الوزن مرتفعًا، فحتى تخفيف ٥-١٠٪ منه يقلل الخطر بشكل ملموس.'},
+        {ic:'🩺', tx:'راجع طبيبك لقياس ضغط الدم والسكري والكوليسترول إن لم تُفحص مؤخرًا.'},
+        {ic:'😴', tx:'اهتم بجودة نومك وطرق تقليل التوتر اليومي.'}
+      ];
+    } else {
+      level = 'خطر مرتفع نسبيًا'; color = 'var(--risk)'; emoji='⚠️';
+      message = 'النتيجة تشير لعدة عوامل خطر مجتمعة. يُنصح بمراجعة طبيب مختص قريبًا لتقييم دقيق وخطة وقاية مناسبة.';
+      tips = [
+        {ic:'🩺', tx:'احجز موعدًا لتقييم طبي شامل يشمل ضغط الدم والسكري والكوليسترول.'},
+        {ic:'🚭', tx:'الإقلاع عن التدخين يُعد من أكثر الخطوات فعالية لتقليل الخطر.'},
+        {ic:'🏃‍♀️', tx:'ابدأ نشاطًا بدنيًا آمنًا بإشراف مختص علاج طبيعي يراعي حالتك.'},
+        {ic:'❤️', tx:'لا تتجاهل أعراضًا مثل ضيق التنفس أو ألم الصدر أو الدوخة المفاجئة.'}
+      ];
+    }
+
+    badge.textContent = emoji;
+    badge.style.background = color.replace('var(--','').replace(')','') ? '' : '';
+    badge.style.background = getComputedStyle(document.documentElement).getPropertyValue(color.match(/--[\w-]+/)[0]) + '22';
+    title.textContent = level;
+    title.style.color = color;
+    sub.textContent = message;
+    fill.style.width = pct + '%';
+    fill.style.background = color;
+
+    tipsList.innerHTML = '';
+    tips.forEach(t=>{
+      const div = document.createElement('div');
+      div.className = 'tip';
+      div.innerHTML = `<span class="ic">${t.ic}</span><span class="tx">${t.tx}</span>`;
+      tipsList.appendChild(div);
+    });
+  }
+
+  document.getElementById('restart-btn').addEventListener('click', ()=>{
+    current = 0;
+    answers = new Array(questions.length).fill(null);
+    screenResult.classList.add('hidden');
+    screenIntro.classList.remove('hidden');
+  });
+
+})();
+</script>
+
+</body>
+</html>
